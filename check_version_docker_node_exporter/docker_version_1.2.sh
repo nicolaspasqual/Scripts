@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#script para a utilização na versão 1.7 do docker e SO centos 6
 #--------------------------------VARIABLES--------------------------------------------------
 
 CONTAINER_ID="/opt/scripts/containers_ID.txt"
