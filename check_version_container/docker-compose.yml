@@ -1,0 +1,16 @@
+---
+version: '3.1'
+
+services:
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.textfile.directory=/var/lib/prometheus/node-exporter/'
+    network_mode: host
+    pid: host
+    restart: always
+    volumes:
+      - '/:/host:ro,rslave'
+      - './arquivos:/var/lib/prometheus/node-exporter/'
