@@ -25,4 +25,4 @@ container=$( echo "$line" | cut -d : -f1 )
 version=$( echo "$line" | cut -d : -f2 )
 echo "running_containers{name="\"$container"\",version="\"$version"\"} 1" >> $PROM
 done < $CONTAINER_VERSION
-chown -R node_exporter:node_exporter /opt/scripts/node_exporter/*
+chown -R node_exporter:node_exporter /opt/scripts
