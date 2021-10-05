@@ -8,9 +8,7 @@ PROM="/opt/scripts/node_exporter/container.prom"
 
 #---------------------------------TEST---------------------------------------------------------
 #As pasta do script existem? 
-if [ -d "/opt/scripts/node_exporter" ]; then
-  exit 0
-  else
+if [ ! -d "/opt/scripts/node_exporter" ]; then
   mkdir /opt/scripts
   mkdir /opt/scripts/node_exporter
 fi
@@ -25,5 +23,6 @@ while read -r line
 do
 container=$( echo "$line" | cut -d : -f1 )
 version=$( echo "$line" | cut -d : -f2 )
-echo "running_containers{name="$container",version="$version"} 1" >> $PROM
+echo "running_containers{name="\"$container"\",version="\"$version"\"} 1" >> $PROM
 done < $CONTAINER_VERSION
+chown -R node_exporter:node_exporter /opt/scripts
