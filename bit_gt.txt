@@ -1,0 +1,116 @@
+#!/usr/bin/python
+import subprocess
+import time
+
+def send_zabbix(nome,valor):
+    try:
+        cmd1 = ["zabbix_sender", "-c", "/etc/zabbix/zabbix_agentd.conf", "-k", "gt.discover", "-v", "-s", "ss7-gt", "-o", '{"data":[{"{#GT}":"'+nome+'","value":"1"}]}']
+        subprocess.check_output(cmd1,universal_newlines=True)
+        return True
+    except:
+        return False
+
+def set_value_zabbix(nome,valor):
+    try:
+        cmd2 = ["zabbix_sender", "-c", "/etc/zabbix/zabbix_agentd.conf", "-k", "gt.bitgt["+nome+"]", "-v", "-s", "ss7-gt", "-o", valor]
+        subprocess.check_output(cmd2,universal_newlines=True)
+        return True
+    except:
+        return False
+
+def le_arquivo(arquivo,lista):
+    f = open(arquivo, "r")
+    f1 = f.readlines()
+    for x in f1:
+        data = { 'OP': x.split('|')[0], 'LINHA': x.split('|')[1] }
+        lista.append(data)
+    return lista
+
+def pega_resultado(lista,resultado):
+    for f in lista:
+        csv= open("/tmp/temp_mtn.csv","w+")
+        csv.write(f['LINHA'])
+        csv.close()
+        print("exec command "+f['LINHA'])
+        output = subprocess.check_output(["python2.7", "/opt/script-tools/locator-5/locator-5.3.7.py", "-f", "/tmp/temp_mtn.csv"],universal_newlines=True)
+        print("command executed")
+        print("")
+        for line in output.splitlines():
+#            print(line)
+            try:
+                linha = str(line.split('Result SRISM: ')[1])
+            except:
+                try:
+                    linha = str(line.split('ERROR: ')[1])
+                except:
+                    linha = 'ERROR'
+        data = { 'GT': f['OP'], 'RT': linha, 'CMD': f['LINHA'] }
+        resultado.append(data)
+    return resultado
+
+arquivo = '/opt/bit-gt/commands_mtn.csv'
+lista = []
+lista = le_arquivo(arquivo,lista)
+resultado = []
+resultado = pega_resultado(lista,resultado)
+
+#filtro do resultado
+filtro = []
+print("filtro 1")
+for r in resultado:
+#    print(r)
+    if r['RT'].strip() == 'OK' or r['RT'].strip() == 'A':
+        data = { 'GT': r['GT'], 'STATUS': "1" }
+        filtro.append(data)
+    elif r['RT'].find('teleserviceNotProvisioned') != -1 or r['RT'].find('unknownSubscriber') != -1:
+        data = { 'GT': r['GT'], 'STATUS': "1" }
+        filtro.append(data)
+    elif r['RT'].find('callBarred') != -1 or r['RT'].find('absentSubscriberSM') != -1:
+        data = { 'GT': r['GT'], 'STATUS': "1" }
+        filtro.append(data)
+    elif r['RT'].find('illegalSubscriber') != -1 or r['RT'].find('systemFailure') != -1:
+        data = { 'GT': r['GT'], 'STATUS': "1" }
+        filtro.append(data)    
+    elif r['RT'].find('SF') != -1:
+        data = { 'GT': r['GT'], 'STATUS': "1" }
+        filtro.append(data) 
+    elif r['RT'].startswith('OK'):
+         data = { 'GT': r['GT'], 'STATUS': "1" }
+         filtro.append(data)
+    else:
+        data = { 'GT': r['GT'], 'STATUS': "0" }
+        filtro.append(data)
+
+# filtro GT COM dois numeros
+lista_1 = []
+lista_2 = []
+lista_final = []
+print("filtro 2")
+for f in filtro:
+    try:
+        if f['GT'].split('_')[2] == "1":
+            lista_1.append(f)
+        elif f['GT'].split('_')[2] == "2":
+            lista_2.append(f)
+        else:
+            lista_final.append(f)
+    except:
+        lista_final.append(f)
+
+for gt in lista_1:
+    for gt2 in lista_2:
+        if gt['GT'].split('_')[1] == gt2['GT'].split('_')[1]:
+            if gt['STATUS'] == "1" or gt2['STATUS'] == "1":
+                data = { 'GT': gt['GT'].split('_')[0]+"_"+gt['GT'].split('_')[1], 'STATUS': "1" }
+                lista_final.append(data)
+            else:
+                data = { 'GT': gt['GT'].split('_')[0]+"_"+gt['GT'].split('_')[1], 'STATUS': "0" }
+                lista_final.append(data)
+
+for r in lista_final:
+    send_zabbix("FM_SRISM_"+r['GT'],r['STATUS'])
+print("filtro 3")
+time.sleep(60)
+
+for r in lista_final:
+    set_value_zabbix("FM_SRISM_"+r['GT'],r['STATUS'])
